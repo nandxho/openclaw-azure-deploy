@@ -22,9 +22,9 @@ Antes de ejecutar el script, necesitas tener listo:
    ```
 
 3. **API Key de NVIDIA** (obligatorio, gratis):
-   - Ve a https://build.nvidia.com/settings/api-keys
-   - Crea una cuenta gratuita
-   - Genera una API key (formato: `nvapi-...`)
+   - Ve a https://build.nvidia.com/moonshotai/kimi-k2.5
+   - Crea una cuenta gratuita de NVIDIA
+   - Haz clic en "Get API Key" para generar tu key (formato: `nvapi-...`)
    - Kimi K2.5 esta disponible gratis via NVIDIA NIM
 
 4. **API Key de Anthropic** (opcional, para modelo fallback):

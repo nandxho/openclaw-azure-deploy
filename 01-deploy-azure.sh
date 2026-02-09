@@ -141,7 +141,7 @@ echo ""
 echo -e "${YELLOW}  Ahora necesito tus credenciales (se guardarán cifradas en Key Vault):${NC}"
 echo ""
 echo -e "  ${BLUE}Modelo principal: Kimi K2.5 vía NVIDIA NIM (GRATIS)${NC}"
-echo -e "  Regístrate y obtén tu API key en: ${GREEN}https://build.nvidia.com/settings/api-keys${NC}"
+echo -e "  Regístrate y obtén tu API key en: ${GREEN}https://build.nvidia.com/moonshotai/kimi-k2.5${NC}"
 echo ""
 
 read -sp "  API Key de NVIDIA (nvapi-...): " NVIDIA_KEY
