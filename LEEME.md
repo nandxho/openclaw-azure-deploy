@@ -149,24 +149,37 @@ Deberias ver:
 [telegram] [default] starting provider (@tu_bot)
 ```
 
-### Paso 5: Configurar politica de acceso
+### Paso 5: Politica de acceso (Seguridad)
 
-Por defecto, Telegram usa `dmPolicy: "pairing"` (requiere aprobar cada usuario). Para permitir acceso abierto:
+Por defecto, Telegram usa `dmPolicy: "pairing"` **(recomendado)**. Esto requiere aprobar manualmente cada usuario nuevo que quiera usar el bot.
 
-```bash
-# Cambiar a politica abierta (cualquiera puede escribir)
-ssh openclaw@<IP-VM> 'docker exec openclaw-gateway node /app/openclaw.mjs config set channels.telegram.dmPolicy open'
-ssh openclaw@<IP-VM> 'docker exec openclaw-gateway node /app/openclaw.mjs config set channels.telegram.allowFrom "[\"*\"]"'
-ssh openclaw@<IP-VM> 'docker restart openclaw-gateway'
-```
+**Como funciona el pairing:**
+1. Un usuario nuevo escribe a tu bot
+2. El bot le envia un codigo de pairing (ej: `ABC123XY`)
+3. Tu apruebas el codigo desde la terminal
+4. El usuario queda autorizado permanentemente
 
 ### Politicas disponibles
 
-| Politica | Descripcion |
-|----------|-------------|
-| `pairing` | Requiere aprobar cada usuario con codigo (mas seguro) |
-| `open` + `allowFrom: ["*"]` | Cualquiera puede escribir al bot |
-| `allowlist` | Solo usuarios en la lista pueden escribir |
+| Politica | Seguridad | Descripcion |
+|----------|-----------|-------------|
+| `pairing` | ⭐ Alta (recomendada) | Requiere aprobar cada usuario con codigo |
+| `allowlist` | ⭐ Alta | Solo usuarios especificos por ID de Telegram |
+| `open` | ⚠️ Baja | Cualquiera puede escribir al bot (no recomendado) |
+
+### Cambiar politica (solo si es necesario)
+
+```bash
+# Opcion segura: pairing (recomendada, es el default)
+ssh openclaw@<IP-VM> 'docker exec openclaw-gateway node /app/openclaw.mjs config set channels.telegram.dmPolicy pairing'
+
+# Opcion NO recomendada: acceso abierto (riesgo de abuso)
+# ssh openclaw@<IP-VM> 'docker exec openclaw-gateway node /app/openclaw.mjs config set channels.telegram.dmPolicy open'
+# ssh openclaw@<IP-VM> 'docker exec openclaw-gateway node /app/openclaw.mjs config set channels.telegram.allowFrom "[\"*\"]"'
+
+# Aplicar cambios
+ssh openclaw@<IP-VM> 'docker restart openclaw-gateway'
+```
 
 ### Comandos utiles de Telegram
 
