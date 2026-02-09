@@ -1,0 +1,82 @@
+# ============================================================================
+# OpenClaw - Docker Compose Hardened
+# ============================================================================
+# USO: docker compose -f docker-compose.hardened.yml up -d
+# ============================================================================
+
+services:
+  openclaw:
+    build:
+      context: ./repo
+      dockerfile: Dockerfile
+    container_name: openclaw-gateway
+
+    # ── Comando (bind lan para acceso via túnel SSH) ────────────────────
+    command: ["node", "openclaw.mjs", "gateway", "--allow-unconfigured", "--bind", "lan"]
+
+    # ── Seguridad ────────────────────────────────────────────────────────
+    user: "1000:1000"                       # Non-root (usuario node)
+    read_only: true                         # Filesystem solo lectura
+    security_opt:
+      - no-new-privileges:true              # Sin escalación de privilegios
+    cap_drop:
+      - ALL                                 # Eliminar TODAS las capabilities
+
+    # ── Filesystem temporal ──────────────────────────────────────────────
+    tmpfs:
+      - /tmp:size=100M,noexec,nosuid        # Temp limitado, sin ejecutables
+      - /home/node/.npm:size=50M            # Cache npm temporal
+
+    # ── Volúmenes ────────────────────────────────────────────────────────
+    volumes:
+      # Estado de OpenClaw (writable, contiene config copiada)
+      - ./data/openclaw:/home/node/.openclaw:rw
+      # Workspace controlado
+      - ./workspace:/home/node/workspace:rw
+      # Docker socket para sandbox containers (necesario para sandbox mode)
+      - /var/run/docker.sock:/var/run/docker.sock
+
+    # ── Red ──────────────────────────────────────────────────────────────
+    ports:
+      - "127.0.0.1:18789:18789"             # Gateway: SOLO localhost
+      - "127.0.0.1:18793:18793"             # Canvas: SOLO localhost
+
+    # ── Variables de entorno ─────────────────────────────────────────────
+    environment:
+      - NODE_ENV=production
+      # Modelo principal: Kimi K2.5 vía NVIDIA NIM (gratis)
+      - NVIDIA_API_KEY=${NVIDIA_API_KEY}
+      # Modelo fallback: Claude Sonnet (opcional)
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      # Gateway auth
+      - OPENCLAW_GATEWAY_TOKEN=${GATEWAY_PASSWORD}
+      # Canales (dejar vacío si no se usa)
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - WHATSAPP_TOKEN=${WHATSAPP_TOKEN:-}
+      - TEAMS_BOT_TOKEN=${TEAMS_BOT_TOKEN:-}
+
+    # ── Recursos ─────────────────────────────────────────────────────────
+    deploy:
+      resources:
+        limits:
+          memory: 3G                        # Máximo 3 GB RAM
+          cpus: "1.5"                       # Máximo 1.5 CPU cores
+        reservations:
+          memory: 512M                      # Mínimo garantizado
+
+    # ── Health check ─────────────────────────────────────────────────────
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:18789/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+    # ── Logging ──────────────────────────────────────────────────────────
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"                     # Máximo 10 MB por archivo de log
+        max-file: "3"                       # Máximo 3 archivos rotados
+
+    restart: unless-stopped

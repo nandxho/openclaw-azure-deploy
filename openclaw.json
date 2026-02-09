@@ -1,0 +1,23 @@
+{
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "nvidia/moonshotai/kimi-k2.5",
+        "fallbacks": ["anthropic/claude-sonnet-4-5-20250929"]
+      }
+    }
+  },
+  "models": {
+    "mode": "merge",
+    "providers": {
+      "nvidia": {
+        "baseUrl": "https://integrate.api.nvidia.com/v1",
+        "apiKey": "${NVIDIA_API_KEY}",
+        "api": "openai-completions",
+        "models": [
+          { "id": "moonshotai/kimi-k2.5", "name": "Kimi K2.5 (NVIDIA)" }
+        ]
+      }
+    }
+  }
+}

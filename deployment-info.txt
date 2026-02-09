@@ -1,0 +1,49 @@
+OpenClaw Azure Deployment Info
+==============================
+Fecha despliegue: 2026-02-08 23:08 UTC
+Ultima actualizacion: 2026-02-09 02:00 UTC
+
+Infraestructura
+---------------
+VM IP: 20.127.16.244
+VM Name: vm-openclaw
+VM Size: Standard_B2ms (2 vCPU, 8 GB RAM)
+Resource Group: rg-openclaw-prod
+Key Vault: kv-openclaw-35dec1fe
+Location: eastus
+
+Modelo de IA
+------------
+Principal: Kimi K2.5 via NVIDIA NIM (gratis)
+Fallback: Claude Sonnet 4.5 (opcional)
+Provider: nvidia
+Base URL: https://integrate.api.nvidia.com/v1
+
+Acceso
+------
+SSH: ssh openclaw@20.127.16.244
+Tunel: ssh -L 18789:localhost:18789 openclaw@20.127.16.244
+Dashboard: http://localhost:18789 (con tunel activo)
+
+Secretos en Key Vault
+---------------------
+- nvidia-api-key: API key de NVIDIA NIM
+- gateway-password: Token de autenticacion del gateway
+- anthropic-api-key: (opcional) API key de Anthropic
+
+Comandos Utiles
+---------------
+# Ver estado
+ssh openclaw@20.127.16.244 'docker compose -f ~/openclaw/docker-compose.hardened.yml ps'
+
+# Ver logs
+ssh openclaw@20.127.16.244 'docker compose -f ~/openclaw/docker-compose.hardened.yml logs -f'
+
+# Reiniciar
+ssh openclaw@20.127.16.244 'cd ~/openclaw && ./02-start-openclaw.sh'
+
+# Obtener token del gateway
+az keyvault secret show --vault-name kv-openclaw-35dec1fe --name gateway-password --query value -o tsv
+
+# Enviar mensaje de prueba
+ssh openclaw@20.127.16.244 'docker exec openclaw-gateway node /app/openclaw.mjs agent --session-id test --message "Hola" --local'
