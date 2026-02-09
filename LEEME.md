@@ -90,7 +90,11 @@ az keyvault secret show --vault-name <TU-KEYVAULT> --name gateway-password --que
 La primera vez que te conectes desde el navegador, necesitas aprobar el dispositivo:
 
 ```bash
-# Dentro de la VM (via SSH)
+# Desde tu Mac (remoto via SSH)
+ssh openclaw@<IP-DE-TU-VM> 'docker exec openclaw-gateway node /app/openclaw.mjs devices list'
+ssh openclaw@<IP-DE-TU-VM> 'docker exec openclaw-gateway node /app/openclaw.mjs devices approve <REQUEST-ID>'
+
+# O dentro de la VM (si ya tienes SSH abierto)
 docker exec openclaw-gateway node /app/openclaw.mjs devices list
 docker exec openclaw-gateway node /app/openclaw.mjs devices approve <REQUEST-ID>
 ```
