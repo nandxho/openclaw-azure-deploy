@@ -197,6 +197,170 @@ ssh openclaw@<IP-VM> 'docker exec openclaw-gateway node /app/openclaw.mjs pairin
 ssh openclaw@<IP-VM> 'docker exec openclaw-gateway node /app/openclaw.mjs pairing approve telegram <CODIGO>'
 ```
 
+## Configuracion de Microsoft Teams
+
+### Paso 1: Registrar Bot en Azure
+
+1. Ve a [Azure Portal](https://portal.azure.com)
+2. Busca "Azure Bot" y crea uno nuevo
+3. Completa:
+   - **Bot handle**: nombre unico (ej: `mi-openclaw-bot`)
+   - **Pricing tier**: F0 (gratis)
+   - **App type**: Single Tenant
+   - **Creation type**: Create new Microsoft App ID
+4. Una vez creado, ve a **Configuration** y guarda:
+   - **Microsoft App ID**
+   - **Microsoft App Password** (clic en "Manage Password")
+
+### Paso 2: Configurar DNS y HTTPS
+
+El bot de Teams requiere HTTPS. Configura el dominio de Azure:
+
+```bash
+# Crear nombre DNS para la VM
+az network public-ip update \
+  --resource-group rg-openclaw-prod \
+  --name pip-openclaw \
+  --dns-name openclaw-tuempresa
+
+# El dominio sera: openclaw-tuempresa.eastus.cloudapp.azure.com
+```
+
+Instala Caddy como reverse proxy con SSL automatico:
+
+```bash
+ssh openclaw@<IP-VM>
+
+# Instalar Caddy
+sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl
+curl -1sLf "https://dl.cloudsmith.io/public/caddy/stable/gpg.key" | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+curl -1sLf "https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt" | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+sudo apt update && sudo apt install -y caddy
+
+# Configurar Caddyfile
+sudo tee /etc/caddy/Caddyfile > /dev/null << EOF
+openclaw-tuempresa.eastus.cloudapp.azure.com {
+    handle /api/messages* {
+        reverse_proxy localhost:3978
+    }
+    handle {
+        respond "OpenClaw Gateway" 200
+    }
+}
+EOF
+
+sudo systemctl restart caddy
+```
+
+### Paso 3: Abrir puertos en Azure
+
+```bash
+# Puerto 3978 para webhook de Teams
+az network nsg rule create \
+  --resource-group rg-openclaw-prod \
+  --nsg-name nsg-openclaw \
+  --name TeamsWebhook \
+  --priority 110 \
+  --direction Inbound \
+  --access Allow \
+  --protocol Tcp \
+  --destination-port-range 3978
+
+# Puertos 80/443 para HTTPS (Caddy)
+az network nsg rule create \
+  --resource-group rg-openclaw-prod \
+  --nsg-name nsg-openclaw \
+  --name HTTP-HTTPS \
+  --priority 120 \
+  --direction Inbound \
+  --access Allow \
+  --protocol Tcp \
+  --destination-port-ranges 80 443
+```
+
+### Paso 4: Agregar puerto 3978 al Docker Compose
+
+Edita `docker-compose.hardened.yml` y agrega el puerto:
+
+```yaml
+ports:
+  - "0.0.0.0:3978:3978"  # Teams webhook
+  - "127.0.0.1:18789:18789"
+  - "127.0.0.1:18793:18793"
+```
+
+### Paso 5: Configurar endpoint en Azure Bot
+
+1. Ve a **Azure Portal** → **Tu Bot** → **Configuration**
+2. En **Messaging endpoint** pon:
+   ```
+   https://openclaw-tuempresa.eastus.cloudapp.azure.com/api/messages
+   ```
+3. Guarda los cambios
+
+### Paso 6: Agregar canal de Teams
+
+```bash
+az bot msteams create --name <TU-BOT> --resource-group rg-openclaw-prod
+```
+
+### Paso 7: Habilitar plugin en OpenClaw
+
+```bash
+# Habilitar plugin
+ssh openclaw@<IP-VM> 'docker exec openclaw-gateway node /app/openclaw.mjs plugins enable msteams'
+
+# Configurar credenciales
+ssh openclaw@<IP-VM> 'docker exec openclaw-gateway node /app/openclaw.mjs config set channels.msteams.enabled true'
+ssh openclaw@<IP-VM> 'docker exec openclaw-gateway node /app/openclaw.mjs config set channels.msteams.appId "<TU-APP-ID>"'
+ssh openclaw@<IP-VM> 'docker exec openclaw-gateway node /app/openclaw.mjs config set channels.msteams.appPassword "<TU-APP-PASSWORD>"'
+ssh openclaw@<IP-VM> 'docker exec openclaw-gateway node /app/openclaw.mjs config set channels.msteams.tenantId "<TU-TENANT-ID>"'
+
+# Reiniciar
+ssh openclaw@<IP-VM> 'cd ~/openclaw && docker compose -f docker-compose.hardened.yml restart'
+```
+
+### Paso 8: Verificar funcionamiento
+
+```bash
+# Ver logs de Teams
+ssh openclaw@<IP-VM> 'docker logs openclaw-gateway 2>&1 | grep msteams'
+
+# Deberia ver:
+# [msteams] starting provider (port 3978)
+# [msteams] msteams provider started on port 3978
+```
+
+### Paso 9: Probar el bot
+
+1. Ve a **Azure Portal** → **Tu Bot** → **Test in Web Chat**
+2. Envia un mensaje de prueba
+3. La primera vez, necesitas aprobar el pairing:
+
+```bash
+# Ver pairings pendientes
+ssh openclaw@<IP-VM> 'docker exec openclaw-gateway node /app/openclaw.mjs pairing list msteams'
+
+# Aprobar pairing
+ssh openclaw@<IP-VM> 'docker exec openclaw-gateway node /app/openclaw.mjs pairing approve msteams <CODIGO>'
+```
+
+### Comandos utiles de Teams
+
+```bash
+# Ver estado del canal
+ssh openclaw@<IP-VM> 'docker exec openclaw-gateway node /app/openclaw.mjs plugins info msteams'
+
+# Ver logs de Teams
+ssh openclaw@<IP-VM> 'docker logs openclaw-gateway 2>&1 | grep msteams'
+
+# Listar pairings pendientes
+ssh openclaw@<IP-VM> 'docker exec openclaw-gateway node /app/openclaw.mjs pairing list msteams'
+
+# Aprobar pairing
+ssh openclaw@<IP-VM> 'docker exec openclaw-gateway node /app/openclaw.mjs pairing approve msteams <CODIGO>'
+```
+
 ## Configuracion del Cliente Local (macOS)
 
 Para una experiencia mas fluida, puedes configurar tu Mac con conexion persistente al gateway.
@@ -341,3 +505,5 @@ El modelo de IA no tiene costo adicional.
 - Health checks automaticos
 - Logging con rotacion
 - Modelo fallback disponible si Kimi K2.5 falla
+- HTTPS via Caddy con certificados Let's Encrypt (para Teams)
+- Validacion JWT en webhook de Teams
