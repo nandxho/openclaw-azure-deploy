@@ -115,6 +115,75 @@ docker exec openclaw-gateway openclaw pairing list
 docker exec openclaw-gateway openclaw pairing approve <canal> <codigo>
 ```
 
+## Configuracion de Telegram
+
+### Paso 1: Crear bot en Telegram
+
+1. Abre Telegram y busca `@BotFather`
+2. Envia `/newbot`
+3. Elige un nombre para tu bot (ej: "Mi OpenClaw")
+4. Elige un username (debe terminar en `bot`, ej: `mi_openclaw_bot`)
+5. BotFather te dara un token como: `123456789:ABCdefGHIjklMNOpqrsTUVwxyz`
+
+### Paso 2: Guardar token en Key Vault
+
+```bash
+az keyvault secret set --vault-name <TU-KEYVAULT> --name telegram-bot-token --value "<TU-TOKEN>"
+```
+
+### Paso 3: Habilitar plugin de Telegram
+
+```bash
+ssh openclaw@<IP-VM> 'docker exec openclaw-gateway node /app/openclaw.mjs config set plugins.entries.telegram.enabled true'
+ssh openclaw@<IP-VM> 'docker restart openclaw-gateway'
+```
+
+### Paso 4: Verificar que Telegram este activo
+
+```bash
+ssh openclaw@<IP-VM> 'docker logs openclaw-gateway 2>&1 | grep telegram'
+```
+
+Deberias ver:
+```
+[telegram] [default] starting provider (@tu_bot)
+```
+
+### Paso 5: Configurar politica de acceso
+
+Por defecto, Telegram usa `dmPolicy: "pairing"` (requiere aprobar cada usuario). Para permitir acceso abierto:
+
+```bash
+# Cambiar a politica abierta (cualquiera puede escribir)
+ssh openclaw@<IP-VM> 'docker exec openclaw-gateway node /app/openclaw.mjs config set channels.telegram.dmPolicy open'
+ssh openclaw@<IP-VM> 'docker exec openclaw-gateway node /app/openclaw.mjs config set channels.telegram.allowFrom "[\"*\"]"'
+ssh openclaw@<IP-VM> 'docker restart openclaw-gateway'
+```
+
+### Politicas disponibles
+
+| Politica | Descripcion |
+|----------|-------------|
+| `pairing` | Requiere aprobar cada usuario con codigo (mas seguro) |
+| `open` + `allowFrom: ["*"]` | Cualquiera puede escribir al bot |
+| `allowlist` | Solo usuarios en la lista pueden escribir |
+
+### Comandos utiles de Telegram
+
+```bash
+# Ver estado del canal
+ssh openclaw@<IP-VM> 'docker exec openclaw-gateway node /app/openclaw.mjs channels status'
+
+# Ver logs de Telegram
+ssh openclaw@<IP-VM> 'docker logs openclaw-gateway 2>&1 | grep telegram'
+
+# Listar pairings pendientes
+ssh openclaw@<IP-VM> 'docker exec openclaw-gateway node /app/openclaw.mjs pairing list'
+
+# Aprobar pairing
+ssh openclaw@<IP-VM> 'docker exec openclaw-gateway node /app/openclaw.mjs pairing approve telegram <CODIGO>'
+```
+
 ## Configuracion del Cliente Local (macOS)
 
 Para una experiencia mas fluida, puedes configurar tu Mac con conexion persistente al gateway.
