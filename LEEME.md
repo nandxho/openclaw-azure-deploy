@@ -45,6 +45,10 @@ Antes de ejecutar el script, necesitas tener listo:
 | `03-kill-switch.sh` | Detencion de emergencia. Usar con `--destroy` para eliminar todo |
 | `docker-compose.hardened.yml` | Docker Compose con todas las capas de seguridad |
 | `openclaw.json` | Configuracion con Kimi K2.5 via NVIDIA NIM |
+| `scripts/04-setup-local-client.sh` | Configura tu Mac como cliente (tunel + Node Host) |
+| `scripts/openclaw-reset.sh` | Reinicia servicios locales o remotos |
+| `scripts/openclaw-stop.sh` | Detiene servicios locales |
+| `scripts/openclaw-logs.sh` | Muestra logs en tiempo real |
 
 ## Ejecucion
 
@@ -110,6 +114,91 @@ La primera vez que alguien te escriba por Telegram, WhatsApp o Teams, OpenClaw g
 docker exec openclaw-gateway openclaw pairing list
 docker exec openclaw-gateway openclaw pairing approve <canal> <codigo>
 ```
+
+## Configuracion del Cliente Local (macOS)
+
+Para una experiencia mas fluida, puedes configurar tu Mac con conexion persistente al gateway.
+
+### Opcion A: Script automatico
+
+```bash
+cd openclaw-azure-deploy/scripts
+chmod +x 04-setup-local-client.sh
+./04-setup-local-client.sh
+```
+
+El script te pedira:
+- IP de la VM
+- Gateway Token (de Key Vault)
+
+Instalara automaticamente:
+- **autossh**: Tunel SSH persistente que se reconecta automaticamente
+- **Node Host**: Puente local para la extension de Chrome
+- **Scripts de utilidad**: openclaw-reset, openclaw-stop, openclaw-logs
+
+### Opcion B: Manual
+
+1. **Instalar autossh**:
+   ```bash
+   brew install autossh
+   ```
+
+2. **Instalar OpenClaw CLI**:
+   ```bash
+   npm install -g openclaw
+   ```
+
+3. **Configurar token**:
+   ```bash
+   openclaw config set gateway.remote.url "ws://localhost:18789"
+   openclaw config set gateway.remote.token "<TU-GATEWAY-TOKEN>"
+   openclaw config set gateway.auth.token "<TU-GATEWAY-TOKEN>"
+   ```
+
+4. **Iniciar tunel persistente**:
+   ```bash
+   autossh -M 0 -N -o ServerAliveInterval=30 -L 18789:localhost:18789 openclaw@<IP-VM>
+   ```
+
+5. **Instalar Node Host**:
+   ```bash
+   OPENCLAW_GATEWAY_TOKEN="<TU-TOKEN>" openclaw node install --host localhost --port 18789
+   ```
+
+### Comandos de utilidad
+
+| Comando | Descripcion |
+|---------|-------------|
+| `openclaw-reset` | Reinicia conexion local (tunel + node host) |
+| `openclaw-reset --full` | Reinicia todo (gateway en Azure + local) |
+| `openclaw-reset --vm` | Reinicia solo el gateway en Azure |
+| `openclaw-stop` | Detiene todos los servicios locales |
+| `openclaw-logs` | Muestra logs en tiempo real |
+
+### Extension de Chrome
+
+1. Descarga la extension:
+   ```bash
+   mkdir -p ~/Downloads/openclaw-chrome-extension
+   cd ~/Downloads/openclaw-chrome-extension
+   curl -sL https://github.com/openclaw/openclaw/archive/refs/heads/main.zip -o oc.zip
+   unzip -q oc.zip "openclaw-main/assets/chrome-extension/*"
+   mv openclaw-main/assets/chrome-extension/* .
+   rm -rf openclaw-main oc.zip
+   ```
+
+2. Instala en Chrome:
+   - Ve a `chrome://extensions`
+   - Activa "Modo de desarrollador"
+   - Clic en "Cargar descomprimida"
+   - Selecciona `~/Downloads/openclaw-chrome-extension`
+
+3. Inicia el relay:
+   ```bash
+   openclaw browser start
+   ```
+
+4. Haz clic en el icono de OpenClaw en cualquier pestaña para adjuntarla.
 
 ## Cambiar de modelo
 
